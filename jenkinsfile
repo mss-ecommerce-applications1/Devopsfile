@@ -1,0 +1,29 @@
+node
+{
+    properties([[$class: 'JiraProjectProperty'], buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), pipelineTriggers([pollSCM('* * * * *')])])
+    echo "Build number is: ${env.BUILD_NUMBER}"
+    def mavenHome=tool name: "maven 3.6.3"
+stage('CheckoutCode')
+{
+git branch: 'development', credentialsId: '8f6378fe-dd51-43f6-b16f-6349e7317abc', url: 'https://github.com/mss-ecommerce-applications1/maven-web-application.git'
+}
+stage('Build')
+{
+sh "${mavenHome}/bin/mvn clean package"
+}
+stage('ExcuteSonarQubeReport')
+{
+sh "${mavenHome}/bin/mvn sonar:sonar"
+}
+stage('UploadArtifactIntoNexus')
+{
+sh "${mavenHome}/bin/mvn deploy"
+}
+stage('DeployAppIntoTomcatserver')
+{
+    sshagent(['Tomcatservercredentials1']) 
+    {
+        sh "scp -o  StrictHostKeyChecking=no target/maven-web-application.war ec2-user@52.66.179.95:/opt/apache-tomcat-9.0.38/webapps/"
+    }
+}
+}
